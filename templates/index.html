@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniDoc Formatter</title>
+    <link rel="stylesheet" href="/static/home.css">
+    <link rel="icon" type="image/png" href="/static/logo.ico">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <img src="/static/logo.png" alt="OmniDoc Logo" class="logo-img">
+                OmniDoc
+            </div>
+            <ul class="nav-links">
+                <li><a href="#">Home</a></li>
+                <li><a href="/about">About</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container form-container">
+        <h1>Document Formatter</h1>
+        <form action="/process" method="post" enctype="multipart/form-data">
+            <label for="docx_file">Upload DOCX File:</label>
+            <input type="file" name="docx_file" required><br><br>
+
+            <label for="formatting_style">Select Formatting Style:</label>
+            <select name="formatting_style" id="formatting_style" required onchange="toggleImageField()">
+                <option value="" selected disabled>Select a Formating style</option>
+                <option value="style_1">MDPI</option>
+                <option value="style_2">ArXiv </option>
+                <option value="style_3">IEEE </option>
+                <option value="style_4">Elsevere </option>
+                <option value="style_5">CMC </option>
+                <option value="style_6">Springer </option>
+            </select><br><br>
+
+
+            <button type="submit" class="btn">Format Document</button>
+        </form>
+    </div>
+
+</body>
+</html>

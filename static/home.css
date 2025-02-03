@@ -1,0 +1,184 @@
+/* General Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Arial", sans-serif;
+}
+
+/* Background */
+body {
+    background: url('img.jpg') no-repeat center center fixed;
+    background-size: cover;
+    color: #ffffff;
+    overflow-x: hidden;
+}
+
+/* Navbar */
+.navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 15px 0;
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.logo {
+    font-size: 26px; /* Slightly larger font for logo */
+    font-weight: bold;
+    color: #00aaff;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-img {
+    width: 80px;
+    height: auto;
+    max-height: 50px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+}
+
+.nav-links li {
+    margin-left: 20px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #fff;
+    font-size: 20px; /* Larger font size for nav links */
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: #00aaff;
+}
+
+/* Form Container */
+.form-container {
+    margin-top: 120px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 50px; /* Increased padding for a slightly larger form */
+    border-radius: 15px;
+    max-width: 600px; /* Slightly larger width */
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    font-size: 32px;
+    color: #00aaff;
+    margin-bottom: 20px;
+}
+
+/* Styling for Labels */
+label {
+    font-size: 18px;
+    display: block;
+    margin-bottom: 10px;
+    color: #fff;
+    text-align: left;
+    font-weight: bold;
+}
+
+/* Input, Select Styling */
+input, select {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    background-color: #333;
+    color: #fff;
+    transition: all 0.3s ease-in-out;
+}
+
+input:focus, select:focus {
+    outline: none;
+    background-color: #00aaff;
+    color: #fff;
+}
+
+/* Styling for Select Dropdown */
+select {
+    cursor: pointer;
+}
+
+select option {
+    background-color: #333;
+    color: #fff;
+}
+
+/* Styling for Buttons */
+.btn {
+    background: #00aaff;
+    color: #fff;
+    font-size: 18px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+.btn:hover {
+    background: #0077cc;
+    transform: scale(1.05);
+}
+
+/* Animation for hover effects on buttons and inputs */
+input:hover, select:hover, .btn:hover {
+    transform: scale(1.05);
+}
+
+/* Image Upload Field */
+#image_upload {
+    display: none;
+}
+
+#image_upload input {
+    width: 100%;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navbar .container {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        margin-top: 10px;
+    }
+
+    .nav-links li {
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    .form-container {
+        width: 90%; /* Slightly more width for smaller screens */
+        padding: 30px;
+    }
+}
