@@ -1,1 +1,9 @@
-.vercel
+# Ignore virtual environments
+.venv/
+venv/
+
+# Ignore compiled Python files
+__pycache__/
+
+# Ignore Vercel config (optional)
+.vercel/
