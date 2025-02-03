@@ -72,5 +72,8 @@ def process():
     # Serve the formatted file for download
     return send_file(formatted_file, as_attachment=True)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# if __name__ == '__main__':
+#     app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Use dynamic port
+    app.run(host="0.0.0.0", port=port)
