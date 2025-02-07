@@ -26,7 +26,7 @@ def identify_section(paragraph):
         return "title"
     elif "author" in style_name:
         return "author"
-    elif "heading1" in style_name:
+    elif "heading 1" in style_name:
         return "heading_1"
     elif "affiliation" in style_name:
         return "affiliation"
