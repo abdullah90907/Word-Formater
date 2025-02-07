@@ -40,11 +40,11 @@ def identify_section(paragraph):
         return "doinum"
     elif "BackMatter" in style_name:
         return "BackMatter"
-    elif "heading2" in style_name:
+    elif "heading 2" in style_name:
         return "heading_2"
-    elif "heading3" in style_name:
+    elif "heading 3" in style_name:
         return "heading_3"
-    elif "heading4" in style_name:
+    elif "heading 4" in style_name:
         return "heading_4"
     return "body"
 
