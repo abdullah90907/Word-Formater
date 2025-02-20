@@ -1,6 +1,8 @@
 import docx
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.enum.section import WD_SECTION_START
+from docx.oxml.ns import qn  
 
 # Function to apply formatting
 def apply_formatting(paragraph, font_name, font_size, bold=False, italic=False, underline=False, alignment=None):
@@ -9,7 +11,7 @@ def apply_formatting(paragraph, font_name, font_size, bold=False, italic=False, 
         font = run.font
         font.name = font_name
         font.size = Pt(font_size)
-        font.bold = bold if bold else run.bold  # Keep existing bold if present
+        font.bold = bold if bold else run.bold  # Preserve existing bold
         font.italic = italic
         font.underline = underline
         font.color.rgb = RGBColor(0, 0, 0)  # Black text
@@ -17,7 +19,33 @@ def apply_formatting(paragraph, font_name, font_size, bold=False, italic=False, 
     if alignment:
         paragraph.alignment = alignment
 
-# Function to identify sections based on style from input DOCX
+# Function to set a single-column layout
+def set_single_column(doc):
+    """Ensures the entire document uses a single-column layout."""
+    for section in doc.sections:
+        section.start_type = WD_SECTION_START.CONTINUOUS  # Prevent new page breaks
+        section.page_width = Inches(8.5)  # Standard single-page width
+        section.page_height = Inches(11)  # Standard height (A4)
+        
+        # Ensure columns are set to 1
+        sectPr = section._sectPr
+        cols = sectPr.xpath('./w:cols')
+        if cols:
+            cols[0].set(qn('w:num'), '1')  # Ensure single-column format
+
+# Function to detect title, authors, and abstract index
+def identify_sections(doc):
+    """Identifies title, authors, and detects where 'Abstract' starts."""
+    paragraphs = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
+    
+    title = paragraphs[0] if paragraphs else ""
+    authors = paragraphs[1] if len(paragraphs) > 1 else ""
+
+    abstract_index = next((i for i, text in enumerate(paragraphs) if text.lower().startswith("abstract")), None)
+    
+    return title, authors, abstract_index
+
+# Function to identify section based on style
 def identify_section(paragraph):
     """Identifies the section type based on the style name from the input document."""
     style_name = paragraph.style.name.lower()
@@ -52,26 +80,34 @@ def identify_section(paragraph):
 def format_docx(file_path):
     doc = docx.Document(file_path)
 
+    # Detect title, authors, and abstract start index
+    title, authors, abstract_index = identify_sections(doc)
+
+    # Ensure single-column layout
+    set_single_column(doc)
+
     # Format content dynamically based on styles
-    for para in doc.paragraphs:
-        section_type = identify_section(para)
+    before_abstract = True  # Flag to track text before Abstract
+
+    for i, para in enumerate(doc.paragraphs):
+        text = para.text.strip()
         
-        if section_type == "title":
+        # Stop "before Abstract" formatting when Abstract is found
+        if abstract_index is not None and i >= abstract_index:
+            before_abstract = False
+
+        section_type = identify_section(para)
+
+        if text == title:
             apply_formatting(para, "Minion Pro", 14, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-        elif section_type == "author":
+        elif text == authors:
             apply_formatting(para, "Minion Pro", 12, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "affiliation":
             apply_formatting(para, "Minion Pro", 9, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "abstract" or section_type == "keyword":
             apply_formatting(para, "Minion Pro", 10, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-            # Keep bold only if originally present
-            for run in para.runs:
-                run.font.bold = run.bold
         elif section_type == "BackMatter":
             apply_formatting(para, "Minion Pro", 10, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-            # Keep bold only if originally present
-            for run in para.runs:
-                run.font.bold = run.bold
         elif section_type == "articletype":
             apply_formatting(para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "doinum":
@@ -82,11 +118,10 @@ def format_docx(file_path):
             apply_formatting(para, "Minion Pro", 11, bold=True, italic=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "heading_3" or section_type == "heading_4":
             apply_formatting(para, "Minion Pro", 11, italic=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+        elif before_abstract:
+            apply_formatting(para, "Minion Pro", 10, alignment=WD_PARAGRAPH_ALIGNMENT.CENTER)
         else:
-            # For normal text, preserve bold if present in the input
             apply_formatting(para, "Minion Pro", 10, alignment=WD_PARAGRAPH_ALIGNMENT.JUSTIFY)
-            for run in para.runs:
-                run.font.bold = run.bold
 
     # Save formatted document
     output_filename = "formatted_document.docx"
