@@ -77,64 +77,46 @@ def clear_header(header):
     header.tables.clear()
 
 def add_header_footer(doc):
-    """Clears existing headers and applies consistent headers: images on page 1, page number + journal on pages 2+."""
-    # print(f"Total sections: {len(doc.sections)}")
-
-    # Disable "Different Odd & Even Pages" in document settings
-    doc_settings = doc.settings
-    even_and_odd = doc_settings.element.find(qn('w:evenAndOddHeaders'))
-    if even_and_odd is not None:
-        doc_settings.element.remove(even_and_odd)
-        # print("Disabled 'Different Odd & Even Pages' to ensure consistent headers on all pages")
-
-    # Ensure at least two pages for testing
+    """Applies headers: images on page 1, even/odd headers with continuous numbering from page 2 onward."""
+    # Ensure at least two pages for testing (unchanged from original)
     if len(doc.paragraphs) < 2:
-        # print("Adding page break to ensure multiple pages")
         doc.add_page_break()
 
-    # Process each section in one pass
+    # Process each section, ensuring continuous numbering and even/odd headers
     for i, section in enumerate(doc.sections):
-        # print(f"\nProcessing section {i + 1}")
+        sectPr = section._sectPr
 
         # Step 1: Clear all headers
         for header_type in ['header', 'first_page_header', 'even_page_header']:
             if hasattr(section, header_type) and getattr(section, header_type) is not None:
                 header = getattr(section, header_type)
-                header.is_linked_to_previous = False
-                for child in list(header._element):
-                    header._element.remove(child)
-                # print(f" - Cleared {header_type}")
+                clear_header(header)
 
         # Step 2: Apply headers
-        # First page header (only for section 0)
         if i == 0:
-            # Enable "Different First Page"
-            sectPr = section._sectPr
+            # Enable "Different First Page" for section 0
             titlePg = sectPr.find(qn('w:titlePg'))
             if titlePg is None:
                 titlePg = OxmlElement('w:titlePg')
                 sectPr.append(titlePg)
-            # print(" - Enabled 'Different First Page'")
 
+            # First page header (images only)
             header = section.first_page_header
             header.is_linked_to_previous = False
             table = header.add_table(rows=1, cols=2, width=Cm(16.50))
             table.autofit = False
             table.columns[0].width = Cm(10.795)
             table.columns[1].width = Cm(10.795)
-
             left_cell = table.cell(0, 0)
             left_paragraph = left_cell.paragraphs[0]
             left_run = left_paragraph.add_run()
-            left_run.add_picture("images/left_image.jpg", width=Cm(3))
+            left_run.add_picture("left_image.jpg", width=Cm(3))
             left_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-
             right_cell = table.cell(0, 1)
             right_paragraph = right_cell.paragraphs[0]
             right_run = right_paragraph.add_run()
-            right_run.add_picture("images/right_image.jpg", width=Cm(3))
+            right_run.add_picture("right_image.jpg", width=Cm(3))
             right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-            # print(" - Added first page header")
 
             # Footer (unchanged)
             footer = section.first_page_footer
@@ -143,13 +125,11 @@ def add_header_footer(doc):
             table.autofit = False
             table.columns[0].width = Cm(5.0)
             table.columns[1].width = Cm(14.50)
-
             left_cell = table.cell(0, 0)
             left_paragraph = left_cell.paragraphs[0]
             left_run = left_paragraph.add_run()
-            left_run.add_picture("images/footer_image.jpg", width=Cm(3))
+            left_run.add_picture("footer_image.jpg", width=Cm(3))
             left_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-
             right_cell = table.cell(0, 1)
             right_paragraph = right_cell.paragraphs[0]
             right_paragraph.text = (
@@ -157,17 +137,21 @@ def add_header_footer(doc):
                 "This work is licensed under a Creative Commons Attribution 4.0 International License."
             )
             right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-            # table.style = "Table Grid"
             table.allow_autofit = False
 
-        # Regular header for all pages in this section (pages 2+ in section 0, all pages in others)
-        header = section.header
-        header.is_linked_to_previous = False
-        table = header.add_table(rows=1, cols=2, width=Cm(16.50))
+        # Enable Different Odd & Even Pages for all sections
+        evenOdd = sectPr.find(qn('w:evenAndOddHeaders'))
+        if evenOdd is None:
+            evenOdd = OxmlElement('w:evenAndOddHeaders')
+            sectPr.append(evenOdd)
+
+        # Even page header (Page number left, Journal right)
+        even_header = section.even_page_header
+        even_header.is_linked_to_previous = False
+        table = even_header.add_table(rows=1, cols=2, width=Cm(16.50))
         table.autofit = False
         table.columns[0].width = Cm(10.795)
         table.columns[1].width = Cm(10.795)
-
         left_cell = table.cell(0, 0)
         left_paragraph = left_cell.paragraphs[0]
         run = left_paragraph.add_run()
@@ -182,20 +166,47 @@ def add_header_footer(doc):
         fld_char_end.set(qn('w:fldCharType'), 'end')
         run._r.append(fld_char_end)
         left_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-
         right_cell = table.cell(0, 1)
         right_paragraph = right_cell.paragraphs[0]
         right_run = right_paragraph.add_run("Comput Mater Contin. 2025;volume(issue)")
-        right_run.font.size = Cm(0.35)  # Ensure visibility
+        right_run.font.size = Cm(0.35)  # Match your original size
         right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-        # print(f" - Added regular header for pages {'2+' if i == 0 else 'all'}")
 
-        # Continuous page numbering
-        sectPr = section._sectPr
+        # Odd page header (Journal left, Page number right)
+        odd_header = section.header
+        odd_header.is_linked_to_previous = False
+        table = odd_header.add_table(rows=1, cols=2, width=Cm(16.50))
+        table.autofit = False
+        table.columns[0].width = Cm(10.795)
+        table.columns[1].width = Cm(10.795)
+        left_cell = table.cell(0, 0)
+        left_paragraph = left_cell.paragraphs[0]
+        left_run = left_paragraph.add_run("Comput Mater Contin. 2025;volume(issue)")
+        left_run.font.size = Cm(0.35)  # Match your original size
+        left_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        right_cell = table.cell(0, 1)
+        right_paragraph = right_cell.paragraphs[0]
+        run = right_paragraph.add_run()
+        fld_char_begin = OxmlElement('w:fldChar')
+        fld_char_begin.set(qn('w:fldCharType'), 'begin')
+        run._r.append(fld_char_begin)
+        instr_text = OxmlElement('w:instrText')
+        instr_text.text = ' PAGE '
+        instr_text.set(qn('xml:space'), 'preserve')
+        run._r.append(instr_text)
+        fld_char_end = OxmlElement('w:fldChar')
+        fld_char_end.set(qn('w:fldCharType'), 'end')
+        run._r.append(fld_char_end)
+        right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+        # Step 3: Ensure continuous page numbering
         pgNumType = sectPr.find(qn('w:pgNumType'))
         if pgNumType is not None:
             sectPr.remove(pgNumType)
         pgNumType = OxmlElement('w:pgNumType')
+        if i == 0:
+            pgNumType.set(qn('w:start'), '1')  # Start at 1 for the first section only
+        # For subsequent sections, omit w:start to continue numbering
         sectPr.append(pgNumType)
 
 # Function to capitalize and bold "Abstract" and "Keyword"
@@ -367,13 +378,13 @@ def adjust_table_widths(doc):
     # Use fixed usable width based on set_page_layout: 21.59 cm - 2.54 cm - 2.54 cm = 16.51 cm
     usable_width_cm = Cm(16.51)
     usable_width_twips = int(usable_width_cm.cm * 567)  # Convert to twips (1 cm = 567 twips)
-    
+
     # Iterate through all tables in the document
     for table in doc.tables:
         # Set table width to maximum usable width
         table.width = usable_width_cm
         table.autofit = False  # Disable autofit to enforce our width
-        
+
         # Adjust column widths proportionally to fit new table width
         total_current_width = sum(col.width for col in table.columns if col.width is not None)
         if total_current_width > 0:  # Avoid division by zero
@@ -381,10 +392,10 @@ def adjust_table_widths(doc):
             for col in table.columns:
                 if col.width is not None:
                     col.width = int(col.width * width_ratio)
-        
+
         # Set table alignment to left (consistent with your document style)
         table.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-        
+
         # Ensure table width is enforced via XML
         tbl_pr = table._tbl.tblPr
         tbl_w = tbl_pr.find(qn('w:tblW'))
@@ -396,130 +407,187 @@ def adjust_table_widths(doc):
 
 
 def normalize_inline_spacing(doc):
-    """Normalizes excessive spaces in all text runs after formatting, preserving images and structure."""
+    """Normalizes excessive spaces in all text runs, including headings, preserving images and structure."""
     for para in doc.paragraphs:
-        # Skip if paragraph has tables or images
         if para._element.findall(qn('w:tbl')) or para._element.xpath('.//w:drawing|.//w:pict'):
-            # print(f"Skipped spacing normalization for paragraph with table/image: {para.text[:20]}...")
             continue
+        full_text = ''.join(run.text for run in para.runs if run.text)
+        if full_text:
+            normalized_text = re.sub(r'\s+', ' ', full_text).strip()
+            if normalized_text != full_text:
+                para.clear()
+                para.add_run(normalized_text)
 
-        modified = False
-        for run in para.runs:
-            original_text = run.text
-            # Normalize spaces in all text runs, including headings
-            normalized_text = re.sub(r'\s+', ' ', original_text).strip()
-            if normalized_text != original_text:
-                run.text = normalized_text
-                modified = True
-        # if modified:
-        #     # print(f"Normalized spacing in paragraph: {para.text[:20]}...")
-
-# Function to format the document
 def format_docx(file_path):
     """Formats the document and returns the path to the saved file."""
     doc = Document(file_path)
 
-    # Detect title, authors, and abstract start index
-    title, authors, abstract_index = identify_sections(doc)
+    # Ensure document has at least one paragraph to work with
+    if not doc.paragraphs:
+        doc.add_paragraph("")
+
+    # Step 1: Handle DOI and Paper Type insertions
+    paragraphs = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
+    print(f"Paragraphs for DOI check: {paragraphs}")  # Debug: Check contents
+    has_doi = any("doi" in p.lower() for p in paragraphs if p and len(p) > 3)  # Avoid false positives
+    has_paper_type = any("paper type" in p.lower() or "articletype" in p.lower() for p in paragraphs if p)
+
+    # Insert DOI if absent
+    if not has_doi:
+        print("Inserting DOI because it’s absent")  # Debug: Confirm execution
+        doi_para = doc.add_paragraph("DOI: _____________")
+        # Safely insert at the start by reordering body elements
+        body_elements = list(doc._body._element)
+        body_elements.insert(0, doi_para._p)
+        doc._body._element.clear()
+        for elem in body_elements:
+            doc._body._element.append(elem)
+        apply_formatting(doi_para, "Minion Pro", 7, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+        blank_para = doc.add_paragraph("")
+        doi_para._p.addnext(blank_para._p)  # Blank line after DOI
+    else:
+        print("DOI already present, skipping insertion")  # Debug: Confirm detection
+        for i, para in enumerate(doc.paragraphs):
+            if "doi" in para.text.lower():
+                apply_formatting(para, "Minion Pro", 7, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+                if i + 1 < len(doc.paragraphs):
+                    blank_para = doc.add_paragraph("")
+                    para._p.addnext(blank_para._p)
+                break
+
+    # Insert Paper Type if absent
+    doi_index = next((i for i, para in enumerate(doc.paragraphs) if "doi" in para.text.lower()), -1)
+    if not has_paper_type:
+        print("Inserting Paper Type because it’s absent")  # Debug: Confirm execution
+        paper_type_para = doc.add_paragraph("Paper Type (____________)")
+        if doi_index >= 0:
+            insert_after = doi_index + 1 if doi_index + 1 < len(doc.paragraphs) else len(doc.paragraphs) - 1
+            if insert_after < len(doc.paragraphs):
+                doc.paragraphs[insert_after]._p.addnext(paper_type_para._p)
+            else:
+                doc._body._element.append(paper_type_para._p)
+        else:
+            doc._body._element.insert(1, paper_type_para._p)  # After initial paragraph if no DOI
+        apply_formatting(paper_type_para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+        blank_para = doc.add_paragraph("")
+        paper_type_para._p.addnext(blank_para._p)
+    else:
+        print("Paper Type already present, skipping insertion")  # Debug: Confirm detection
+        for i, para in enumerate(doc.paragraphs):
+            if "paper type" in para.text.lower() or "articletype" in para.text.lower():
+                apply_formatting(para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+                if i + 1 < len(doc.paragraphs):
+                    blank_para = doc.add_paragraph("")
+                    para._p.addnext(blank_para._p)
+                break
+
+    # Step 2: Identify Title and Authors
+    all_paragraphs = [para for para in doc.paragraphs]  # Include all paragraphs, including blanks
+    title_index = 0
+    # Count inserted paragraphs to find Title
+    inserted_count = 0
+    if not has_doi:
+        inserted_count += 2  # DOI + blank
+    if not has_paper_type:
+        inserted_count += 2  # Paper Type + blank
+    # Title is the first non-empty paragraph after inserted sections
+    for i, para in enumerate(all_paragraphs):
+        if i >= inserted_count and para.text.strip() and not para.text.strip().startswith(("DOI:", "Paper Type")):
+            title_index = i
+            break
+    else:
+        title_index = inserted_count if inserted_count < len(all_paragraphs) else 0
+
+    # Find the next non-empty paragraph for Authors
+    authors_index = title_index
+    for i in range(title_index + 1, len(all_paragraphs)):
+        if all_paragraphs[i].text.strip() and not all_paragraphs[i].text.strip().startswith(("DOI:", "Paper Type")):
+            authors_index = i
+            break
+
+    title = all_paragraphs[title_index].text.strip() if title_index < len(all_paragraphs) else ""
+    authors = all_paragraphs[authors_index].text.strip() if authors_index < len(all_paragraphs) else ""
+    abstract_index = next((i for i, para in enumerate(all_paragraphs) if para.text.strip().lower().startswith("abstract")), None)
+
+    print(f"Title Index: {title_index}, Title: {title}")  # Debug: Verify title selection
+    print(f"Authors Index: {authors_index}, Authors: {authors}")  # Debug: Verify authors selection
 
     # Ensure single-column layout
     set_single_column(doc)
 
-    # Flag to track if we've reached the "References" section
+    # Flags
     in_references_section = False
+    before_abstract = True
+    title_formatted = False
+    authors_formatted = False
 
-    
-
-
-    # Format content dynamically based on styles
-    before_abstract = True  # Flag to track text before Abstract
-
+    # Step 3: Format paragraphs
     for i, para in enumerate(doc.paragraphs):
         text = para.text.strip()
 
-        # Stop "before Abstract" formatting when Abstract is found
         if abstract_index is not None and i >= abstract_index:
             before_abstract = False
-        # Check for DOI in the first paragraph
-        if i == 0 and "DOI" in text.upper():
-            apply_formatting(para, "Minion Pro", 7, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+
+        # Format DOI
+        if "doi" in text.lower() and i <= 1:
+            apply_formatting(para, "Minion Pro", 7, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+            continue
+        # Format Paper Type
+        elif ("paper type" in text.lower() or "articletype" in text.lower()) and i <= 3:
+            apply_formatting(para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+            continue
+        # Format Title
+        elif i == title_index and text and not title_formatted:
+            apply_formatting(para, "Minion Pro", 14, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+            title_formatted = True
+            continue
+        # Format Authors
+        elif i == authors_index and text and not authors_formatted:
+            apply_formatting(para, "Minion Pro", 12, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+            authors_formatted = True
+            continue
+
+        # Skip further formatting if Title or Authors were just formatted
+        if title_formatted and i <= authors_index:
             continue
 
         section_type = identify_section(para)
-
-        if text == title:
-            apply_formatting(para, "Minion Pro", 14, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-        elif text == authors:
-            apply_formatting(para, "Minion Pro", 12, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-        elif section_type == "affiliation":
+        if section_type == "affiliation":
             apply_formatting(para, "Minion Pro", 9, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "abstract" or section_type == "keyword":
             apply_formatting(para, "Minion Pro", 10, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "BackMatter":
             apply_formatting(para, "Minion Pro", 10, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-        elif section_type == "articletype":
-            apply_formatting(para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-        elif section_type == "doinum":
-            apply_formatting(para, "Minion Pro", 7, bold=False, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "heading_1":
             apply_formatting(para, "Minion Pro", 11, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "heading_2":
             apply_formatting(para, "Minion Pro", 11, bold=True, italic=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "heading_3" or section_type == "heading_4":
             apply_formatting(para, "Minion Pro", 11, italic=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-        # elif before_abstract:
-        #     apply_formatting(para, "Minion Pro", 10, alignment=WD_PARAGRAPH_ALIGNMENT.CENTER)
         else:
             apply_formatting(para, "Minion Pro", 10, alignment=WD_PARAGRAPH_ALIGNMENT.JUSTIFY)
 
-
-
-
-        # Check if this paragraph starts with "References" (case-insensitive)
         if text.lower().startswith("References"):
             in_references_section = True
-            continue  # Skip the "References" paragraph itself
-
-        # Apply indentation only if we are NOT in the "References" section
+            continue
         if not in_references_section and i > 0:
             previous_para = doc.paragraphs[i - 1]
             previous_section_type = identify_section(previous_para)
             current_section_type = identify_section(para)
-
-            # Indent if previous paragraph is a heading and current one is not
             if previous_section_type in ["heading_1", "heading_2", "heading_3", "heading_4"] and \
-              current_section_type not in ["heading_1", "heading_2", "heading_3", "heading_4"]:
-                # Apply indentation only to paragraphs starting with a letter (not numbers or single letters)
+               current_section_type not in ["heading_1", "heading_2", "heading_3", "heading_4"]:
                 if re.match(r'^[A-Za-z]', text) and not re.match(r'^\d', text) and not re.match(r'^[A-Z]\s', text):
-                    # Ensure the paragraph isn’t entirely bold
                     if not all(run.bold for run in para.runs if run.text.strip()):
                         indent_first_line(para, Cm(0.5))
 
-    # Remove existing headers and footers
-    # remove_existing_headers_footers(doc)
-
-    # Normalize inline spacing (text only)
     normalize_inline_spacing(doc)
-
-    # Resize and center-align all inline images
     split_and_center_align_images(doc)
-
-    # Set page layout
     set_page_layout(doc)
-
-    # Add numbering on the right side
     add_numbering(doc)
-
-    # Add header and footer
     add_header_footer(doc)
-
-    # Capitalize and bold "Abstract" and "Keyword"
     capitalize_and_bold_abstract_keyword(doc)
-
-    # Adjust all table widths to fit within page
     adjust_table_widths(doc)
 
-    # Save formatted document
     output_filename = "formated.docx"
     doc.save(output_filename)
     return output_filename
