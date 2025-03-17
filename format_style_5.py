@@ -110,12 +110,12 @@ def add_header_footer(doc):
             left_cell = table.cell(0, 0)
             left_paragraph = left_cell.paragraphs[0]
             left_run = left_paragraph.add_run()
-            left_run.add_picture("left_image.jpg", width=Cm(3))
+            left_run.add_picture("images/left_image.jpg", width=Cm(3))
             left_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
             right_cell = table.cell(0, 1)
             right_paragraph = right_cell.paragraphs[0]
             right_run = right_paragraph.add_run()
-            right_run.add_picture("right_image.jpg", width=Cm(3))
+            right_run.add_picture("images/right_image.jpg", width=Cm(3))
             right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
 
             # Footer (unchanged)
@@ -128,7 +128,7 @@ def add_header_footer(doc):
             left_cell = table.cell(0, 0)
             left_paragraph = left_cell.paragraphs[0]
             left_run = left_paragraph.add_run()
-            left_run.add_picture("footer_image.jpg", width=Cm(3))
+            left_run.add_picture("images/footer_image.jpg", width=Cm(3))
             left_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
             right_cell = table.cell(0, 1)
             right_paragraph = right_cell.paragraphs[0]
@@ -263,18 +263,6 @@ def set_single_column(doc):
         cols = sectPr.xpath('./w:cols')
         if cols:
             cols[0].set(qn('w:num'), '1')  # Ensure single-column format
-
-# Function to detect title, authors, and abstract index
-def identify_sections(doc):
-    """Identifies title, authors, and detects where 'Abstract' starts."""
-    paragraphs = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
-
-    title = paragraphs[0] if paragraphs else ""
-    authors = paragraphs[1] if len(paragraphs) > 1 else ""
-
-    abstract_index = next((i for i, text in enumerate(paragraphs) if text.lower().startswith("abstract")), None)
-
-    return title, authors, abstract_index
 
 def indent_first_line(paragraph, indent_size=Cm(0.5)):
     """Adds first-line indentation to the paragraph."""
@@ -418,99 +406,131 @@ def normalize_inline_spacing(doc):
                 para.clear()
                 para.add_run(normalized_text)
 
+# Function to detect title, authors, and abstract index
+def identify_sections(doc):
+    """Identifies title, authors, and abstract index with robust content-based logic."""
+    all_paragraphs = [para for para in doc.paragraphs]  # Include empty paragraphs for accurate indexing
+    paragraphs = [para.text.strip() for para in all_paragraphs if para.text.strip()]
+
+    # Title: First paragraph that isn’t DOI, Paper Type, or Abstract
+    title = ""
+    title_index = None
+    for i, para in enumerate(all_paragraphs):
+        text = para.text.strip()
+        if text and not any(text.lower().startswith(x) for x in ["doi", "paper type", "articletype", "abstract"]):
+            title = text
+            title_index = i
+            break
+
+    # Authors: Next non-empty paragraph after title, before Abstract
+    authors = ""
+    authors_index = None
+    if title_index is not None:
+        for i in range(title_index + 1, len(all_paragraphs)):
+            text = all_paragraphs[i].text.strip()
+            if text and not any(text.lower().startswith(x) for x in ["abstract", "doi", "paper type", "articletype"]):
+                authors = text
+                authors_index = i
+                break
+
+    # Abstract index
+    abstract_index = next((i for i, para in enumerate(all_paragraphs) if para.text.strip().lower().startswith("abstract")), None)
+
+    return title, authors, title_index, authors_index, abstract_index
+
 def format_docx(file_path):
     """Formats the document and returns the path to the saved file."""
     doc = Document(file_path)
 
-    # Ensure document has at least one paragraph to work with
+    # Ensure document has at least one paragraph
     if not doc.paragraphs:
         doc.add_paragraph("")
 
-    # Step 1: Handle DOI and Paper Type insertions
-    paragraphs = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
-    print(f"Paragraphs for DOI check: {paragraphs}")  # Debug: Check contents
-    has_doi = any("doi" in p.lower() for p in paragraphs if p and len(p) > 3)  # Avoid false positives
-    has_paper_type = any("paper type" in p.lower() or "articletype" in p.lower() for p in paragraphs if p)
+    # Step 1: Handle DOI, Paper Type, and spacing before title
+    all_paras = [para for para in doc.paragraphs]
+    paragraphs = [para.text.strip() for para in all_paras if para.text.strip()]
+    # Stricter DOI detection: must start with "doi:" or "DOI:"
+    has_doi = any(p.lower().startswith("doi:") for p in paragraphs if p and len(p) > 4)
+    print(f"Has DOI: {has_doi}, Paragraphs checked: {paragraphs}")
 
     # Insert DOI if absent
     if not has_doi:
-        print("Inserting DOI because it’s absent")  # Debug: Confirm execution
-        doi_para = doc.add_paragraph("DOI: _____________")
-        # Safely insert at the start by reordering body elements
-        body_elements = list(doc._body._element)
-        body_elements.insert(0, doi_para._p)
-        doc._body._element.clear()
-        for elem in body_elements:
-            doc._body._element.append(elem)
+        print("Inserting DOI because it’s absent")
+        doi_para = doc.add_paragraph("DOI: _________________")
+        # Move to top by inserting at the beginning
+        if all_paras:  # If there are existing paragraphs
+            all_paras[0]._p.addprevious(doi_para._p)
+            all_paras.insert(0, doi_para)
+        else:  # If document was empty
+            all_paras = [doi_para]
         apply_formatting(doi_para, "Minion Pro", 7, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         blank_para = doc.add_paragraph("")
-        doi_para._p.addnext(blank_para._p)  # Blank line after DOI
+        blank_para.paragraph_format.space_after = Pt(6)
+        doi_para._p.addnext(blank_para._p)
+        all_paras.insert(1, blank_para)
     else:
-        print("DOI already present, skipping insertion")  # Debug: Confirm detection
-        for i, para in enumerate(doc.paragraphs):
-            if "doi" in para.text.lower():
+        print("DOI already present, formatting only")
+        for i, para in enumerate(all_paras):
+            if para.text.strip().lower().startswith("doi:"):
                 apply_formatting(para, "Minion Pro", 7, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-                if i + 1 < len(doc.paragraphs):
-                    blank_para = doc.add_paragraph("")
-                    para._p.addnext(blank_para._p)
                 break
 
     # Insert Paper Type if absent
-    doi_index = next((i for i, para in enumerate(doc.paragraphs) if "doi" in para.text.lower()), -1)
+    has_paper_type = any(p.lower().startswith(("paper type", "articletype")) for p in paragraphs if p)
+    print(f"Has Paper Type: {has_paper_type}")
+    doi_index = next((i for i, para in enumerate(all_paras) if para.text.strip().lower().startswith("doi:")), -1)
     if not has_paper_type:
-        print("Inserting Paper Type because it’s absent")  # Debug: Confirm execution
-        paper_type_para = doc.add_paragraph("Paper Type (____________)")
-        if doi_index >= 0:
-            insert_after = doi_index + 1 if doi_index + 1 < len(doc.paragraphs) else len(doc.paragraphs) - 1
-            if insert_after < len(doc.paragraphs):
-                doc.paragraphs[insert_after]._p.addnext(paper_type_para._p)
-            else:
-                doc._body._element.append(paper_type_para._p)
+        print("Inserting Paper Type because it’s absent")
+        paper_type_para = doc.add_paragraph("Paper Type (_________________)")
+        insert_after = doi_index + 1 if doi_index >= 0 else 0
+        if insert_after < len(all_paras) and not all_paras[insert_after].text.strip():
+            insert_after += 1  # Skip blank line after DOI
+        if insert_after < len(all_paras):
+            all_paras[insert_after]._p.addprevious(paper_type_para._p)
+            all_paras.insert(insert_after, paper_type_para)
         else:
-            doc._body._element.insert(1, paper_type_para._p)  # After initial paragraph if no DOI
+            doc._body._element.append(paper_type_para._p)
+            all_paras.append(paper_type_para)
         apply_formatting(paper_type_para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         blank_para = doc.add_paragraph("")
+        blank_para.paragraph_format.space_after = Pt(6)
         paper_type_para._p.addnext(blank_para._p)
+        all_paras.insert(all_paras.index(paper_type_para) + 1, blank_para)
     else:
-        print("Paper Type already present, skipping insertion")  # Debug: Confirm detection
-        for i, para in enumerate(doc.paragraphs):
-            if "paper type" in para.text.lower() or "articletype" in para.text.lower():
+        print("Paper Type already present, formatting only")
+        for i, para in enumerate(all_paras):
+            if para.text.strip().lower().startswith(("paper type", "articletype")):
                 apply_formatting(para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-                if i + 1 < len(doc.paragraphs):
-                    blank_para = doc.add_paragraph("")
-                    para._p.addnext(blank_para._p)
                 break
 
-    # Step 2: Identify Title and Authors
-    all_paragraphs = [para for para in doc.paragraphs]  # Include all paragraphs, including blanks
-    title_index = 0
-    # Count inserted paragraphs to find Title
-    inserted_count = 0
-    if not has_doi:
-        inserted_count += 2  # DOI + blank
-    if not has_paper_type:
-        inserted_count += 2  # Paper Type + blank
-    # Title is the first non-empty paragraph after inserted sections
-    for i, para in enumerate(all_paragraphs):
-        if i >= inserted_count and para.text.strip() and not para.text.strip().startswith(("DOI:", "Paper Type")):
-            title_index = i
-            break
+    # Identify title and add spacing before it
+    title, authors, title_index, authors_index, abstract_index = identify_sections(doc)
+    print(f"Title Index: {title_index}, Title: {title}")
+    print(f"Authors Index: {authors_index}, Authors: {authors}")
+    print(f"Abstract Index: {abstract_index}")
+
+    if title_index is not None and title_index < len(all_paras):
+        # Add blank line before title if not already present
+        if title_index > 0 and all_paras[title_index - 1].text.strip():
+            blank_para = doc.add_paragraph("")
+            blank_para.paragraph_format.space_after = Pt(6)
+            all_paras[title_index]._p.addprevious(blank_para._p)
+            all_paras.insert(title_index, blank_para)
+            title_index += 1
+            authors_index = authors_index + 1 if authors_index is not None else None
+            abstract_index = abstract_index + 1 if abstract_index is not None else None
+        elif title_index > 0:
+            all_paras[title_index - 1].paragraph_format.space_after = Pt(6)
+
+    # Step 2: Apply title and authors formatting
+    if title_index is not None and title_index < len(all_paras):
+        apply_formatting(all_paras[title_index], "Minion Pro", 14, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+        print(f"Applied title formatting to: {all_paras[title_index].text}")
+    if authors_index is not None and authors_index < len(all_paras):
+        apply_formatting(all_paras[authors_index], "Minion Pro", 12, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+        print(f"Applied authors formatting to: {all_paras[authors_index].text}")
     else:
-        title_index = inserted_count if inserted_count < len(all_paragraphs) else 0
-
-    # Find the next non-empty paragraph for Authors
-    authors_index = title_index
-    for i in range(title_index + 1, len(all_paragraphs)):
-        if all_paragraphs[i].text.strip() and not all_paragraphs[i].text.strip().startswith(("DOI:", "Paper Type")):
-            authors_index = i
-            break
-
-    title = all_paragraphs[title_index].text.strip() if title_index < len(all_paragraphs) else ""
-    authors = all_paragraphs[authors_index].text.strip() if authors_index < len(all_paragraphs) else ""
-    abstract_index = next((i for i, para in enumerate(all_paragraphs) if para.text.strip().lower().startswith("abstract")), None)
-
-    print(f"Title Index: {title_index}, Title: {title}")  # Debug: Verify title selection
-    print(f"Authors Index: {authors_index}, Authors: {authors}")  # Debug: Verify authors selection
+        print("Authors index not found or invalid!")
 
     # Ensure single-column layout
     set_single_column(doc)
@@ -518,37 +538,25 @@ def format_docx(file_path):
     # Flags
     in_references_section = False
     before_abstract = True
-    title_formatted = False
-    authors_formatted = False
 
-    # Step 3: Format paragraphs
-    for i, para in enumerate(doc.paragraphs):
+    # Step 3: Format remaining paragraphs, preserving input spacing
+    for i, para in enumerate(all_paras):
         text = para.text.strip()
+
+        # Skip title and authors since they’re already formatted
+        if i == title_index or i == authors_index:
+            continue
 
         if abstract_index is not None and i >= abstract_index:
             before_abstract = False
 
         # Format DOI
-        if "doi" in text.lower() and i <= 1:
+        if text.lower().startswith("doi:") and i <= 1:
             apply_formatting(para, "Minion Pro", 7, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
             continue
         # Format Paper Type
-        elif ("paper type" in text.lower() or "articletype" in text.lower()) and i <= 3:
+        elif text.lower().startswith(("paper type", "articletype")) and i <= 3:
             apply_formatting(para, "Minion Pro", 9, bold=True, underline=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-            continue
-        # Format Title
-        elif i == title_index and text and not title_formatted:
-            apply_formatting(para, "Minion Pro", 14, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-            title_formatted = True
-            continue
-        # Format Authors
-        elif i == authors_index and text and not authors_formatted:
-            apply_formatting(para, "Minion Pro", 12, bold=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
-            authors_formatted = True
-            continue
-
-        # Skip further formatting if Title or Authors were just formatted
-        if title_formatted and i <= authors_index:
             continue
 
         section_type = identify_section(para)
@@ -564,14 +572,16 @@ def format_docx(file_path):
             apply_formatting(para, "Minion Pro", 11, bold=True, italic=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
         elif section_type == "heading_3" or section_type == "heading_4":
             apply_formatting(para, "Minion Pro", 11, italic=True, alignment=WD_PARAGRAPH_ALIGNMENT.LEFT)
+        elif not text:  # Preserve blank lines from input without modification
+            continue
         else:
             apply_formatting(para, "Minion Pro", 10, alignment=WD_PARAGRAPH_ALIGNMENT.JUSTIFY)
 
-        if text.lower().startswith("References"):
+        if text.lower().startswith("references"):
             in_references_section = True
             continue
         if not in_references_section and i > 0:
-            previous_para = doc.paragraphs[i - 1]
+            previous_para = all_paras[i - 1]
             previous_section_type = identify_section(previous_para)
             current_section_type = identify_section(para)
             if previous_section_type in ["heading_1", "heading_2", "heading_3", "heading_4"] and \
