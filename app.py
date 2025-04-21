@@ -3,12 +3,12 @@ from werkzeug.utils import secure_filename
 import os
 
 # Import the format_docx functions from both formatting styles
-from format_style_1 import format_docx as format_docx_style_1
-from format_style_2 import format_docx as format_docx_style_2
-from format_style_3 import format_docx as format_docx_style_3
-from format_style_4 import format_docx as format_docx_style_4
+# from format_style_1 import format_docx as format_docx_style_1
+# from format_style_2 import format_docx as format_docx_style_2
+# from format_style_3 import format_docx as format_docx_style_3
+# from format_style_4 import format_docx as format_docx_style_4
 from format_style_5 import format_docx as format_docx_style_5
-from format_style_6 import format_docx as format_docx_style_6
+# from format_style_6 import format_docx as format_docx_style_6
 
 
 app = Flask(__name__)
