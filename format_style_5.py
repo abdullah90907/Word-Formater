@@ -575,7 +575,7 @@ def format_docx(file_path):
         elif not text:  # Preserve blank lines from input without modification
             continue
         else:
-            apply_formatting(para, "Minion Pro", 10, alignment=WD_PARAGRAPH_ALIGNMENT.JUSTIFY)
+            apply_formatting(para, "Minion Pro", 11, alignment=WD_PARAGRAPH_ALIGNMENT.JUSTIFY)
 
         if text.lower().startswith("references"):
             in_references_section = True
