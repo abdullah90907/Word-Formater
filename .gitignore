@@ -3,3 +3,10 @@ venv/
 __pycache__/
 .vercel/
 node_modules/
+
+# Ignore specific format_style files
+format_style_1.py
+format_style_2.py
+format_style_3.py
+format_style_4.py
+format_style_6.py
